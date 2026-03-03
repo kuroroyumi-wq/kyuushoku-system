@@ -1,0 +1,16 @@
+# Phase1
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# Phase2
+data/menu.db
+backend_go/menu-system
+backend_go/go.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

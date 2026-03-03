@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "description": "管理栄養士業務システム データスキーマ",
+  "updated_at": "2026-03-03",
+  "tables": {
+    "ingredients": {
+      "columns": ["id", "name", "ingredient_category", "energy", "protein", "fat", "carbohydrate", "salt", "unit", "waste_rate", "note"]
+    },
+    "dishes": {
+      "columns": ["id", "name", "menu_category", "serving_size", "note"]
+    },
+    "recipe": {
+      "columns": ["dish_id", "ingredient_id", "amount"]
+    },
+    "menus": {
+      "columns": ["date", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]
+    }
+  }
+}
