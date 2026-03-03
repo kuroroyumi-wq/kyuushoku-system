@@ -54,6 +54,17 @@ go build -o menu-system .
 
 ※ `go: command not found` の場合は、上記「Go のインストール」を実行してください。
 
+## テスト実行
+
+**ターミナルで以下を実行**（backend_go ディレクトリで実行）：
+
+```bash
+cd /Applications/cursorフォルダ/idea/backend_go
+go test -v
+```
+
+※ 事前にプロジェクトルートで `python3 tools/migrate_csv_to_sqlite.py` を実行し、data/menu.db を作成してください。
+
 ## コマンド
 
 | コマンド | 説明 | 例 |
@@ -63,6 +74,7 @@ go build -o menu-system .
 | `create-menu` | 献立登録 | `./menu-system create-menu --date 2026-04-01` |
 | `order` | 発注集計 | `./menu-system order --start 2026-04-01 --end 2026-04-30 --people 120` |
 | `export` | 献立表Excel出力 | `./menu-system export --month 2026-04 --output 献立表.xlsx` |
+| `serve` | REST API サーバ起動（Phase3） | `./menu-system serve` または `./menu-system serve --port 8080` |
 
 ## 実行場所
 

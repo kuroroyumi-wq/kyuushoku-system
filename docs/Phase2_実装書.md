@@ -124,7 +124,20 @@ python3 tools/migrate_csv_to_sqlite.py
 
 ---
 
-## 9. トラブルシューティング
+## 9. テスト実行
+
+```bash
+cd /Applications/cursorフォルダ/idea/backend_go
+go test -v
+```
+
+※ go.mod は backend_go/ 内にあるため、backend_go ディレクトリで実行する。
+
+テスト対象: 栄養価計算、発注集計、参照整合性チェック（Phase1 と同等）
+
+---
+
+## 10. トラブルシューティング
 
 | エラー | 対処 |
 |--------|------|
@@ -134,7 +147,7 @@ python3 tools/migrate_csv_to_sqlite.py
 
 ---
 
-## 10. 関連ドキュメント
+## 11. 関連ドキュメント
 
 | ドキュメント | 内容 |
 |--------------|------|
@@ -144,8 +157,9 @@ python3 tools/migrate_csv_to_sqlite.py
 
 ---
 
-## 11. 改訂履歴
+## 12. 改訂履歴
 
 | 版数 | 日付 | 内容 |
 |------|------|------|
 | 1.0 | 2026年3月3日 | 初版作成。移行ツール、Go CLI、SQLite スキーマを記載 |
+| 1.1 | 2026年3月3日 | Go 単体テスト追加（main_test.go）。Phase2 完了条件を満たす |

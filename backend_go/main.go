@@ -44,6 +44,21 @@ func findDBPath() string {
 	return filepath.Join(cwd, "data", "menu.db")
 }
 
+// validateReferenceIntegrity は recipe の dish_id, ingredient_id が有効かチェック。テスト用。
+func validateReferenceIntegrity(db *sql.DB) (bool, error) {
+	var orphanCount int
+	err := db.QueryRow(`
+		SELECT COUNT(*) FROM recipe r
+		LEFT JOIN dishes d ON r.dish_id = d.id
+		LEFT JOIN ingredients i ON r.ingredient_id = i.id
+		WHERE d.id IS NULL OR i.id IS NULL
+	`).Scan(&orphanCount)
+	if err != nil {
+		return false, err
+	}
+	return orphanCount == 0, nil
+}
+
 func openDB() (*sql.DB, error) {
 	dbPath := findDBPath()
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -178,14 +193,15 @@ func cmdCalc(db *sql.DB, date string) error {
 	return nil
 }
 
-func cmdOrder(db *sql.DB, start, end string, people int) error {
+// aggregateOrder は期間内の献立から食材使用量を集計。テスト用の純粋関数。
+func aggregateOrder(db *sql.DB, start, end string, people int) (map[int]float64, error) {
 	rows, err := db.Query(`
 		SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus
 		WHERE date >= ? AND date <= ?
 		ORDER BY date
 	`, start, end)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -194,7 +210,7 @@ func cmdOrder(db *sql.DB, start, end string, people int) error {
 	for rows.Next() {
 		var s, m, si, so, d int
 		if err := rows.Scan(&s, &m, &si, &so, &d); err != nil {
-			return err
+			return nil, err
 		}
 		count++
 		for _, dishID := range []int{s, m, si, so, d} {
@@ -212,11 +228,24 @@ func cmdOrder(db *sql.DB, start, end string, people int) error {
 		}
 	}
 	if count == 0 {
-		return fmt.Errorf("%s 〜 %s に献立が登録されていません", start, end)
+		return nil, fmt.Errorf("%s 〜 %s に献立が登録されていません", start, end)
+	}
+
+	result := make(map[int]float64)
+	for ingID, amt := range amountByIng {
+		result[ingID] = round1(amt * float64(people))
+	}
+	return result, nil
+}
+
+func cmdOrder(db *sql.DB, start, end string, people int) error {
+	totalByIng, err := aggregateOrder(db, start, end, people)
+	if err != nil {
+		return err
 	}
 
 	ingNames := make(map[int]string)
-	for ingID := range amountByIng {
+	for ingID := range totalByIng {
 		var name string
 		db.QueryRow("SELECT name FROM ingredients WHERE id = ?", ingID).Scan(&name)
 		ingNames[ingID] = name
@@ -227,14 +256,13 @@ func cmdOrder(db *sql.DB, start, end string, people int) error {
 	fmt.Printf("%-20s %12s\n", "食材名", "総使用量(g)")
 	fmt.Println("----------------------------------------")
 
-	// Phase1 と同様に ingredient_id でソート
-	ingIDs := make([]int, 0, len(amountByIng))
-	for ingID := range amountByIng {
+	ingIDs := make([]int, 0, len(totalByIng))
+	for ingID := range totalByIng {
 		ingIDs = append(ingIDs, ingID)
 	}
 	sort.Ints(ingIDs)
 	for _, ingID := range ingIDs {
-		total := round1(amountByIng[ingID] * float64(people))
+		total := totalByIng[ingID]
 		name := ingNames[ingID]
 		if name == "" {
 			name = fmt.Sprintf("不明(id:%d)", ingID)
@@ -485,6 +513,12 @@ func main() {
 			}
 		}
 		runErr = cmdExport(db, month, output)
+	case "serve":
+		port := "8080"
+		if len(args) >= 2 && args[0] == "--port" {
+			port = args[1]
+		}
+		runErr = runServer(db, port)
 	default:
 		fmt.Fprintf(os.Stderr, "未知のコマンド: %s\n", cmd)
 		os.Exit(1)

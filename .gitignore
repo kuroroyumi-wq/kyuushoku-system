@@ -7,7 +7,10 @@ venv/
 # Phase2
 data/menu.db
 backend_go/menu-system
-backend_go/go.sum
+
+# Phase3
+frontend_web/node_modules/
+frontend_web/dist/
 
 # IDE
 .idea/
