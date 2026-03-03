@@ -21,7 +21,7 @@ python main.py export --month 2026-04 --output 献立表.xlsx
 ## テスト実行
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 source venv/bin/activate
 python -m pytest phase1_python/test_main.py -v
 ```

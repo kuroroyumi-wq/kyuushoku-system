@@ -33,7 +33,7 @@ npm -v    # 9.x 以上
 ## セットアップ・実行
 
 ```bash
-cd /Applications/cursorフォルダ/idea/frontend_web
+cd /path/to/kyuushoku-system/frontend_web
 npm install
 npm run dev
 ```

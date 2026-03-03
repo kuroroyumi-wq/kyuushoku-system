@@ -45,7 +45,7 @@ brew install go
 ## ビルド・実行
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 python3 tools/migrate_csv_to_sqlite.py   # 初回のみ
 cd backend_go
 go mod tidy
@@ -59,7 +59,7 @@ go build -o menu-system .
 **ターミナルで以下を実行**（backend_go ディレクトリで実行）：
 
 ```bash
-cd /Applications/cursorフォルダ/idea/backend_go
+cd /path/to/kyuushoku-system/backend_go
 go test -v
 ```
 
@@ -82,7 +82,7 @@ go test -v
 プロジェクトルートで実行することを推奨：
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 ./backend_go/menu-system calc --date 2026-04-01
 ```
 

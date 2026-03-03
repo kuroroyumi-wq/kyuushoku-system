@@ -54,7 +54,7 @@ pytest>=7.0.0
 ### 3.1 実行コマンド
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 source venv/bin/activate
 python phase1_python/main.py <コマンド> [オプション]
 ```
@@ -195,7 +195,7 @@ python phase1_python/main.py <コマンド> [オプション]
 ### 9.1 実行方法
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 source venv/bin/activate
 python -m pytest phase1_python/test_main.py -v
 ```

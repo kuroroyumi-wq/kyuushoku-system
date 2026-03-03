@@ -48,7 +48,7 @@ data/ の CSV を SQLite にインポートする。Phase2 実行前に必須。
 ### 3.2 実行
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 python3 tools/migrate_csv_to_sqlite.py
 ```
 
@@ -127,7 +127,7 @@ python3 tools/migrate_csv_to_sqlite.py
 ## 9. テスト実行
 
 ```bash
-cd /Applications/cursorフォルダ/idea/backend_go
+cd /path/to/kyuushoku-system/backend_go
 go test -v
 ```
 

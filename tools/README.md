@@ -7,7 +7,7 @@ Phase2 で使用する SQLite データベースを、data/ の CSV から作成
 ### 実行方法
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 python3 tools/migrate_csv_to_sqlite.py
 ```
 

@@ -17,3 +17,14 @@ frontend_web/dist/
 .vscode/
 *.swp
 *.swo
+
+# 秘密情報・出力ファイル
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+credentials.yml
+**/credentials*
+献立表_*.xlsx

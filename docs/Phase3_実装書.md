@@ -21,7 +21,7 @@
 ### 2.1 API サーバ
 
 ```bash
-cd /Applications/cursorフォルダ/idea
+cd /path/to/kyuushoku-system
 python3 tools/migrate_csv_to_sqlite.py   # 初回のみ
 cd backend_go
 go build -o menu-system .
@@ -35,7 +35,7 @@ go build -o menu-system .
 **前提**: Node.js がインストールされていること。`npm: command not found` の場合は https://nodejs.org/ja から LTS 版をインストール。
 
 ```bash
-cd /Applications/cursorフォルダ/idea/frontend_web
+cd /path/to/kyuushoku-system/frontend_web
 npm install
 npm run dev
 ```
