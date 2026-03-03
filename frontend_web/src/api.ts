@@ -113,10 +113,36 @@ export async function getCalc(date: string): Promise<Nutrition> {
   return res.json();
 }
 
-export async function getOrder(start: string, end: string, people: number): Promise<OrderResult> {
-  const res = await fetch(`${API_BASE}/order?start=${start}&end=${end}&people=${people}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export async function getOrder(start: string, end: string, people: number, excludeCondiments?: boolean): Promise<OrderResult> {
+  const params = new URLSearchParams({ start, end, people: String(people) })
+  if (excludeCondiments) params.set('exclude_condiments', '1')
+  const res = await fetch(`${API_BASE}/order?${params}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export interface BulkOrderItem {
+  ingredient_id: number
+  name: string
+  total_g: number
+  order_unit_g: number
+  order_unit_name: string
+  bulk_category: string
+  order_qty: number
+}
+
+export interface BulkOrderResult {
+  start: string
+  end: string
+  people: number
+  items: BulkOrderItem[]
+}
+
+export async function getBulkOrder(start: string, end: string, people: number): Promise<BulkOrderResult> {
+  const params = new URLSearchParams({ start, end, people: String(people) })
+  const res = await fetch(`${API_BASE}/order/bulk?${params}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
 export async function downloadExport(month: string): Promise<Blob> {

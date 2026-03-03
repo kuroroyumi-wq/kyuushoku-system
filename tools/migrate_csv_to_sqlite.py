@@ -63,11 +63,15 @@ def migrate(db_path: str) -> None:
         ("dishes.csv", "dishes", ["id", "name", "menu_category", "serving_size", "note"]),
         ("recipe.csv", "recipe", ["dish_id", "ingredient_id", "amount"]),
         ("menus.csv", "menus", ["date", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]),
+        ("bulk_purchase_guide.csv", "bulk_purchase_guide", ["ingredient_id", "order_unit_g", "order_unit_name", "bulk_category"]),
     ]
 
-    # 外部キー順に削除（recipe → menus は独立、ingredients/dishes は recipe から参照される）
+    # 外部キー順に削除
     for _, table_name, _ in reversed(tables):
-        conn.execute(f"DELETE FROM {table_name}")
+        try:
+            conn.execute(f"DELETE FROM {table_name}")
+        except sqlite3.OperationalError:
+            pass  # テーブルが存在しない場合はスキップ
 
     for csv_name, table_name, columns in tables:
         csv_path = os.path.join(DATA_DIR, csv_name)

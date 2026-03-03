@@ -53,7 +53,8 @@ npm run dev
 | / | 献立一覧 | 月別の献立表示 |
 | /menu-input | 献立入力 | 日付・5カテゴリ選択で登録 |
 | /nutrition | 栄養計算 | 日付指定で栄養価表示 |
-| /order | 発注集計 | 期間・人数で集計、Excel ダウンロード |
+| /order | 発注集計 | 日別/期間・人数で集計、Excel ダウンロード |
+| /bulk-order | まとめ買い | 米・調味料・乾物などのまとめ買い目安 |
 
 ---
 
@@ -66,6 +67,7 @@ npm run dev
 | POST | /api/menus | 献立登録 |
 | GET | /api/calc | 栄養価計算 |
 | GET | /api/order | 発注集計 |
+| GET | /api/order/bulk | まとめ買い目安 |
 | GET | /api/export | 献立表Excelダウンロード |
 
 詳細は `docs/API仕様書.md` を参照。

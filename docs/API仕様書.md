@@ -26,6 +26,7 @@
 | PUT | /api/menus | 献立更新 |
 | GET | /api/calc | 栄養価計算 |
 | GET | /api/order | 発注集計 |
+| GET | /api/order/bulk | まとめ買い目安 |
 | GET | /api/export | 献立表Excelダウンロード |
 
 ---
@@ -183,7 +184,34 @@
 
 ### GET /api/order
 
-発注集計を取得。
+発注集計を取得。start=end で1日分の集計が可能。
+
+**クエリ**
+| パラメータ | 型 | 必須 | 説明 |
+|------------|-----|------|------|
+| start | string | ○ | 開始日 YYYY-MM-DD |
+| end | string | ○ | 終了日 YYYY-MM-DD |
+| people | int | ○ | 人数 |
+| exclude_condiments | string | - | 1 のとき調味料を除外 |
+
+**レスポンス例**
+```json
+{
+  "start": "2026-04-01",
+  "end": "2026-04-30",
+  "people": 120,
+  "items": [
+    {"ingredient_id": 1, "name": "精白米（炊飯）", "total_g": 54000},
+    {"ingredient_id": 4, "name": "豚もも肉（生）", "total_g": 19200}
+  ]
+}
+```
+
+---
+
+### GET /api/order/bulk
+
+まとめ買い目安を取得。米・調味料・乾物など、まとめて発注する食材の使用量と発注目安を返す。
 
 **クエリ**
 | パラメータ | 型 | 必須 | 説明 |
@@ -199,8 +227,15 @@
   "end": "2026-04-30",
   "people": 120,
   "items": [
-    {"ingredient_id": 1, "name": "精白米（炊飯）", "total_g": 54000},
-    {"ingredient_id": 4, "name": "豚もも肉（生）", "total_g": 19200}
+    {
+      "ingredient_id": 1,
+      "name": "精白米（炊飯）",
+      "total_g": 54000,
+      "order_unit_g": 5000,
+      "order_unit_name": "5kg袋",
+      "bulk_category": "米・主食",
+      "order_qty": 11
+    }
   ]
 }
 ```

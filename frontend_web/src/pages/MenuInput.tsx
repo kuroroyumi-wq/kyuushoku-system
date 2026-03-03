@@ -4,6 +4,13 @@ import type { Dish } from '../api'
 
 const CATEGORIES = ['主食', '主菜', '副菜', '汁物', 'デザート'] as const
 
+/** 日付を API が期待する YYYY-MM-DD 形式に正規化 */
+function normalizeDate(d: string): string {
+  const trimmed = d.trim()
+  if (!trimmed) return ''
+  return trimmed.replace(/\//g, '-')
+}
+
 export default function MenuInput() {
   const [date, setDate] = useState('2026-04-01')
   const [dishesByCat, setDishesByCat] = useState<Record<string, Dish[]>>({})
@@ -25,7 +32,8 @@ export default function MenuInput() {
   }, [])
 
   useEffect(() => {
-    if (!date) {
+    const normalized = normalizeDate(date)
+    if (!normalized) {
       setSelected({})
       setHasExisting(false)
       setError('')
@@ -35,7 +43,7 @@ export default function MenuInput() {
     setLoadingMenu(true)
     setError('')
     setSuccess('')
-    getMenuByDate(date)
+    getMenuByDate(normalized)
       .then((menu) => {
         setSelected({
           主食: menu.staple_id ?? 0,
@@ -67,12 +75,16 @@ export default function MenuInput() {
     if (apiError.includes('登録されていません')) {
       return 'この日付には献立が登録されていません。新規登録の場合は「献立を登録」を押してください。'
     }
+    if (apiError.includes('readonly') || apiError.includes('read only') || apiError.includes('write a readonly')) {
+      return 'データベースが読み取り専用のため、書き込みできません。data/menu.db のファイル権限を確認してください。'
+    }
     return apiError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!date) {
+    const normalized = normalizeDate(date)
+    if (!normalized) {
       setError('献立の日付を選択してください。')
       return
     }
@@ -85,9 +97,9 @@ export default function MenuInput() {
     setError('')
     setSuccess('')
     const doSave = hasExisting ? updateMenu : createMenu
-    doSave(date, ids[0], ids[1], ids[2], ids[3], ids[4])
+    doSave(normalized, ids[0], ids[1], ids[2], ids[3], ids[4])
       .then(() => {
-        setSuccess(hasExisting ? `献立を更新しました: ${date}` : `献立を登録しました: ${date}`)
+        setSuccess(hasExisting ? `献立を更新しました: ${normalized}` : `献立を登録しました: ${normalized}`)
         setHasExisting(true)
         if (!hasExisting) setSelected({})
       })
@@ -105,7 +117,8 @@ export default function MenuInput() {
             type="date"
             value={date}
             onChange={(e) => {
-              setDate(e.target.value)
+              const v = e.target.value
+              setDate(normalizeDate(v) || v)
               setError('')
             }}
             required

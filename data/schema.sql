@@ -51,6 +51,14 @@ CREATE TABLE IF NOT EXISTS menus (
     note TEXT
 );
 
+-- まとめ買いガイド（発注単位・分類）
+CREATE TABLE IF NOT EXISTS bulk_purchase_guide (
+    ingredient_id INTEGER PRIMARY KEY REFERENCES ingredients(id),
+    order_unit_g REAL NOT NULL,
+    order_unit_name TEXT NOT NULL,
+    bulk_category TEXT NOT NULL
+);
+
 -- インデックス
 CREATE INDEX IF NOT EXISTS idx_recipe_dish ON recipe(dish_id);
 CREATE INDEX IF NOT EXISTS idx_recipe_ingredient ON recipe(ingredient_id);

@@ -114,7 +114,7 @@ func TestAggregateOrder_同一食材合算(t *testing.T) {
 	}
 	defer db.Close()
 
-	result, err := aggregateOrder(db, "2026-04-01", "2026-04-03", 1)
+	result, err := aggregateOrder(db, "2026-04-01", "2026-04-03", 1, false)
 	if err != nil {
 		t.Fatalf("aggregateOrder: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestAggregateOrder_人数倍率(t *testing.T) {
 	}
 	defer db.Close()
 
-	result, err := aggregateOrder(db, "2026-04-01", "2026-04-03", 10)
+	result, err := aggregateOrder(db, "2026-04-01", "2026-04-03", 10, false)
 	if err != nil {
 		t.Fatalf("aggregateOrder: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestAggregateOrder_期間外(t *testing.T) {
 	}
 	defer db.Close()
 
-	result, err := aggregateOrder(db, "2026-04-02", "2026-04-02", 1)
+	result, err := aggregateOrder(db, "2026-04-02", "2026-04-02", 1, false)
 	if err != nil {
 		t.Fatalf("aggregateOrder: %v", err)
 	}

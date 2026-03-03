@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -36,6 +37,18 @@ func writeJSON(w http.ResponseWriter, v interface{}, status int) {
 
 func writeError(w http.ResponseWriter, msg string, status int) {
 	writeJSON(w, map[string]string{"error": msg}, status)
+}
+
+// dbErrorToJapanese は DB エラーをユーザー向け日本語メッセージに変換
+func dbErrorToJapanese(err error) string {
+	if err == nil {
+		return ""
+	}
+	s := err.Error()
+	if strings.Contains(s, "readonly") || strings.Contains(s, "read only") {
+		return "データベースが読み取り専用のため、書き込みできません。data/menu.db のファイル権限を確認してください。"
+	}
+	return s
 }
 
 // GET /api/dishes?category=主食
@@ -77,7 +90,8 @@ func handleDishes(db *sql.DB) http.HandlerFunc {
 func handleMenus(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		month := r.URL.Query().Get("month")
-		date := r.URL.Query().Get("date")
+		dateRaw := r.URL.Query().Get("date")
+		date := strings.ReplaceAll(dateRaw, "/", "-")
 
 		if date != "" {
 			var stapleID, mainID, sideID, soupID, dessertID int
@@ -199,23 +213,24 @@ func handleCreateMenu(db *sql.DB) http.HandlerFunc {
 			writeError(w, "date は必須です", http.StatusBadRequest)
 			return
 		}
+		dateNorm := strings.ReplaceAll(body.Date, "/", "-")
 
 		var exists int
-		db.QueryRow("SELECT 1 FROM menus WHERE date = ?", body.Date).Scan(&exists)
+		db.QueryRow("SELECT 1 FROM menus WHERE date = ?", dateNorm).Scan(&exists)
 		if exists == 1 {
-			writeError(w, body.Date+" は既に登録されています", http.StatusConflict)
+			writeError(w, dateNorm+" は既に登録されています", http.StatusConflict)
 			return
 		}
 
 		_, err := db.Exec(`
 			INSERT INTO menus (date, staple_id, main_id, side_id, soup_id, dessert_id, note)
 			VALUES (?, ?, ?, ?, ?, ?, '')
-		`, body.Date, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID)
+		`, dateNorm, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID)
 		if err != nil {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, dbErrorToJapanese(err), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, map[string]string{"message": "献立を登録しました", "date": body.Date}, http.StatusCreated)
+		writeJSON(w, map[string]string{"message": "献立を登録しました", "date": dateNorm}, http.StatusCreated)
 	}
 }
 
@@ -242,21 +257,22 @@ func handleUpdateMenu(db *sql.DB) http.HandlerFunc {
 			writeError(w, "date は必須です", http.StatusBadRequest)
 			return
 		}
+		dateNorm := strings.ReplaceAll(body.Date, "/", "-")
 
 		result, err := db.Exec(`
 			UPDATE menus SET staple_id=?, main_id=?, side_id=?, soup_id=?, dessert_id=?
 			WHERE date = ?
-		`, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID, body.Date)
+		`, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID, dateNorm)
 		if err != nil {
-			writeError(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, dbErrorToJapanese(err), http.StatusInternalServerError)
 			return
 		}
 		rows, _ := result.RowsAffected()
 		if rows == 0 {
-			writeError(w, body.Date+" の献立が登録されていません", http.StatusNotFound)
+			writeError(w, dateNorm+" の献立が登録されていません", http.StatusNotFound)
 			return
 		}
-		writeJSON(w, map[string]string{"message": "献立を更新しました", "date": body.Date}, http.StatusOK)
+		writeJSON(w, map[string]string{"message": "献立を更新しました", "date": dateNorm}, http.StatusOK)
 	}
 }
 
@@ -322,7 +338,8 @@ func handleOrder(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		totalByIng, err := aggregateOrder(db, start, end, people)
+		excludeCondiments := r.URL.Query().Get("exclude_condiments") == "1"
+		totalByIng, err := aggregateOrder(db, start, end, people, excludeCondiments)
 		if err != nil {
 			writeError(w, err.Error(), http.StatusNotFound)
 			return
@@ -354,6 +371,74 @@ func handleOrder(db *sql.DB) http.HandlerFunc {
 				"total_g":       total,
 			})
 		}
+		writeJSON(w, map[string]interface{}{
+			"start":  start,
+			"end":    end,
+			"people": people,
+			"items":  items,
+		}, http.StatusOK)
+	}
+}
+
+// GET /api/order/bulk?start=2026-04-01&end=2026-04-30&people=120
+func handleBulkOrder(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := r.URL.Query().Get("start")
+		end := r.URL.Query().Get("end")
+		peopleStr := r.URL.Query().Get("people")
+		if start == "" || end == "" || peopleStr == "" {
+			writeError(w, "start, end, people を指定してください", http.StatusBadRequest)
+			return
+		}
+		people, err := strconv.Atoi(peopleStr)
+		if err != nil || people < 1 {
+			writeError(w, "people は正の整数で指定してください", http.StatusBadRequest)
+			return
+		}
+
+		totalByIng, err := aggregateOrder(db, start, end, people, false)
+		if err != nil {
+			writeError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		rows, err := db.Query(`
+			SELECT b.ingredient_id, i.name, b.order_unit_g, b.order_unit_name, b.bulk_category
+			FROM bulk_purchase_guide b
+			JOIN ingredients i ON b.ingredient_id = i.id
+			ORDER BY b.bulk_category, b.ingredient_id
+		`)
+		if err != nil {
+			writeError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var items []map[string]interface{}
+		for rows.Next() {
+			var ingID int
+			var name string
+			var orderUnitG float64
+			var orderUnitName, bulkCategory string
+			if err := rows.Scan(&ingID, &name, &orderUnitG, &orderUnitName, &bulkCategory); err != nil {
+				continue
+			}
+			totalG, ok := totalByIng[ingID]
+			if !ok || totalG <= 0 {
+				continue
+			}
+			orderQty := int(math.Ceil(totalG / orderUnitG))
+			items = append(items, map[string]interface{}{
+				"ingredient_id":   ingID,
+				"name":           name,
+				"total_g":        totalG,
+				"order_unit_g":   orderUnitG,
+				"order_unit_name": orderUnitName,
+				"bulk_category":  bulkCategory,
+				"order_qty":      orderQty,
+			})
+		}
+
 		writeJSON(w, map[string]interface{}{
 			"start":  start,
 			"end":    end,
@@ -469,6 +554,7 @@ func runServer(db *sql.DB, port string) error {
 	})
 	mux.HandleFunc("/api/calc", handleCalc(db))
 	mux.HandleFunc("/api/order", handleOrder(db))
+	mux.HandleFunc("/api/order/bulk", handleBulkOrder(db))
 	mux.HandleFunc("/api/export", handleExport(db))
 
 	handler := corsMiddleware(mux)

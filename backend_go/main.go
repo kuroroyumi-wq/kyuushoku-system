@@ -193,8 +193,8 @@ func cmdCalc(db *sql.DB, date string) error {
 	return nil
 }
 
-// aggregateOrder は期間内の献立から食材使用量を集計。テスト用の純粋関数。
-func aggregateOrder(db *sql.DB, start, end string, people int) (map[int]float64, error) {
+// aggregateOrder は期間内の献立から食材使用量を集計。excludeCondiments が true のとき調味料を除外。
+func aggregateOrder(db *sql.DB, start, end string, people int, excludeCondiments bool) (map[int]float64, error) {
 	rows, err := db.Query(`
 		SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus
 		WHERE date >= ? AND date <= ?
@@ -233,13 +233,19 @@ func aggregateOrder(db *sql.DB, start, end string, people int) (map[int]float64,
 
 	result := make(map[int]float64)
 	for ingID, amt := range amountByIng {
+		if excludeCondiments {
+			var cat string
+			if err := db.QueryRow("SELECT ingredient_category FROM ingredients WHERE id = ?", ingID).Scan(&cat); err == nil && cat == "調味料" {
+				continue
+			}
+		}
 		result[ingID] = round1(amt * float64(people))
 	}
 	return result, nil
 }
 
 func cmdOrder(db *sql.DB, start, end string, people int) error {
-	totalByIng, err := aggregateOrder(db, start, end, people)
+	totalByIng, err := aggregateOrder(db, start, end, people, false)
 	if err != nil {
 		return err
 	}
