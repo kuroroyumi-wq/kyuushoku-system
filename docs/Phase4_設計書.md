@@ -1,8 +1,8 @@
 # Phase4 設計書（PostgreSQL + 本格運用）
 
-**版数**：1.0  
+**版数**：1.1  
 **作成日**：2026年3月3日  
-**ステータス**：設計検討中
+**ステータス**：Task1 実装済み（SQLite/PostgreSQL 両対応）
 
 ---
 
@@ -204,9 +204,9 @@ pg_dump -Fc kyuushoku > backup_$(date +%Y%m%d).dump
 
 ## 9. 次のアクション
 
-1. **設計の確定**: テナントID方式で進めるか決定
-2. **PostgreSQL 環境構築**: ローカルまたは Docker で PostgreSQL を用意
-3. **移行ツール作成**: SQLite → PostgreSQL の移行スクリプト作成
+1. ~~**PostgreSQL 環境構築**~~: ローカルまたは Docker で PostgreSQL を用意
+2. ~~**移行ツール作成**~~: `tools/migrate_sqlite_to_pg.py` 完成
+3. **施設マスタ・facility_id 追加**: Task2 へ
 
 ---
 
@@ -215,3 +215,4 @@ pg_dump -Fc kyuushoku > backup_$(date +%Y%m%d).dump
 | 版数 | 日付 | 内容 |
 |------|------|------|
 | 1.0 | 2026年3月3日 | 初版作成 |
+| 1.1 | 2026年3月4日 | Task1 実装: schema_pg.sql, migrate_sqlite_to_pg.py, Go 両対応 |

@@ -20,6 +20,8 @@
 
 ## クイックスタート
 
+### SQLite（デフォルト）
+
 ```bash
 # 1. データ投入（初回のみ）
 python3 tools/migrate_csv_to_sqlite.py
@@ -31,6 +33,14 @@ cd backend_go && ./menu-system serve
 # 3. フロントエンド（別ターミナル）
 cd frontend_web && npm install && npm run dev
 # → http://localhost:5173
+```
+
+### PostgreSQL（Phase4）
+
+```bash
+# 1. DB 作成: createdb kyuushoku
+# 2. 移行: pip install psycopg2-binary && python3 tools/migrate_sqlite_to_pg.py
+# 3. 起動: export DATABASE_URL="postgres://localhost:5432/kyuushoku" && cd backend_go && ./menu-system serve
 ```
 
 ## 構成
