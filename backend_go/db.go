@@ -15,6 +15,9 @@ import (
 
 var usePostgres bool
 
+// DefaultFacilityID は未指定時のデフォルト施設（Phase4）
+const DefaultFacilityID = 1
+
 // q は PostgreSQL 使用時に ? を $1, $2, ... に変換する
 func q(s string) string {
 	if !usePostgres {

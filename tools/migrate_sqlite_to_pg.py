@@ -55,7 +55,7 @@ def migrate() -> None:
         print("PostgreSQL スキーマ作成完了")
 
         # 既存データ削除（依存順）
-        truncate_order = ["menus", "recipe", "bulk_purchase_guide", "dishes", "ingredients"]
+        truncate_order = ["menus", "recipe", "bulk_purchase_guide", "dishes", "ingredients", "users", "facilities"]
         with pg_conn.cursor() as cur:
             for t in truncate_order:
                 try:
@@ -64,18 +64,47 @@ def migrate() -> None:
                     pass
 
         # データコピー（外部キー順）
+        # facilities: SQLite にあればコピー、なければデフォルト挿入
+        try:
+            cur_sqlite = sqlite_conn.execute("SELECT id, name, code FROM facilities")
+            fac_rows = cur_sqlite.fetchall()
+        except sqlite3.OperationalError:
+            fac_rows = [(1, "デフォルト", "default")]
+
+        with pg_conn.cursor() as cur:
+            for r in fac_rows:
+                cur.execute(
+                    "INSERT INTO facilities (id, name, code) VALUES (%s, %s, %s)",
+                    (r[0], r[1], r[2]),
+                )
+        print(f"  facilities: {len(fac_rows)} 件")
+
         tables = [
-            ("ingredients", ["id", "name", "ingredient_category", "energy", "protein", "fat",
+            ("ingredients", ["id", "facility_id", "name", "ingredient_category", "energy", "protein", "fat",
              "carbohydrate", "salt", "unit", "waste_rate", "note"]),
-            ("dishes", ["id", "name", "menu_category", "serving_size", "note"]),
+            ("dishes", ["id", "facility_id", "name", "menu_category", "serving_size", "note"]),
             ("recipe", ["dish_id", "ingredient_id", "amount"]),
-            ("menus", ["date", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]),
+            ("menus", ["date", "facility_id", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]),
             ("bulk_purchase_guide", ["ingredient_id", "order_unit_g", "order_unit_name", "bulk_category"]),
         ]
 
         for table_name, columns in tables:
-            cur_sqlite = sqlite_conn.execute(f"SELECT {', '.join(columns)} FROM {table_name}")
-            rows = cur_sqlite.fetchall()
+            try:
+                cur_sqlite = sqlite_conn.execute(f"SELECT {', '.join(columns)} FROM {table_name}")
+            except sqlite3.OperationalError:
+                # 旧スキーマ（facility_id なし）: 先に migrate_add_facility.py を実行
+                if "facility_id" in columns:
+                    fallback = [c for c in columns if c != "facility_id"]
+                    cur_sqlite = sqlite_conn.execute(f"SELECT {', '.join(fallback)} FROM {table_name}")
+                    rows = cur_sqlite.fetchall()
+                    fid_val = 1 if table_name == "menus" else None
+                    idx = columns.index("facility_id")
+                    rows = [tuple(list(r)[:idx] + [fid_val] + list(r)[idx:]) for r in rows]
+                else:
+                    raise
+            else:
+                rows = cur_sqlite.fetchall()
+
             if not rows:
                 print(f"  {table_name}: 0 件")
                 continue

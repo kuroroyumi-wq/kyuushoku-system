@@ -40,6 +40,42 @@ nav a {
   color: white;
   margin-right: 16px;
 }
+nav button.nav-logout {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.5);
+  margin-left: auto;
+}
+nav button.nav-logout:hover {
+  background: rgba(255,255,255,0.2);
+}
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 24px;
+}
+.login-card {
+  background: white;
+  border-radius: 8px;
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.login-card h1 { font-size: 1.25rem; }
+.login-card form > div { margin-bottom: 16px; }
+.login-card .link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+}
+.login-card .link:hover { background: none; }
 button {
   background: #2563eb;
   color: white;

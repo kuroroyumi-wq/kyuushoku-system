@@ -20,7 +20,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -58,9 +58,9 @@ func handleDishes(db *sql.DB) http.HandlerFunc {
 		var rows *sql.Rows
 		var err error
 		if category != "" {
-			rows, err = db.Query("SELECT id, name, menu_category, serving_size, note FROM dishes WHERE menu_category = ? ORDER BY id", category)
+			rows, err = db.Query(q("SELECT id, name, menu_category, serving_size, note FROM dishes WHERE menu_category = ? ORDER BY id"), category)
 		} else {
-			rows, err = db.Query("SELECT id, name, menu_category, serving_size, note FROM dishes ORDER BY menu_category, id")
+			rows, err = db.Query(q("SELECT id, name, menu_category, serving_size, note FROM dishes ORDER BY menu_category, id"))
 		}
 		if err != nil {
 			writeError(w, err.Error(), http.StatusInternalServerError)
@@ -96,9 +96,9 @@ func handleMenus(db *sql.DB) http.HandlerFunc {
 		if date != "" {
 			var stapleID, mainID, sideID, soupID, dessertID int
 			var note sql.NullString
-			err := db.QueryRow(`
-				SELECT staple_id, main_id, side_id, soup_id, dessert_id, note FROM menus WHERE date = ?
-			`, date).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID, &note)
+			err := db.QueryRow(q(`
+				SELECT staple_id, main_id, side_id, soup_id, dessert_id, note FROM menus WHERE date = ? AND facility_id = ?
+			`), date, DefaultFacilityID).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID, &note)
 			if err == sql.ErrNoRows {
 				writeError(w, "献立が登録されていません", http.StatusNotFound)
 				return
@@ -135,7 +135,7 @@ func handleMenus(db *sql.DB) http.HandlerFunc {
 		lastDay := time.Date(year, time.Month(m+1), 0, 0, 0, 0, 0, time.UTC).Day()
 		end := fmt.Sprintf("%04d-%02d-%02d", year, m, lastDay)
 
-		rows, err := db.Query(`
+		rows, err := db.Query(q(`
 			SELECT m.date, m.staple_id, m.main_id, m.side_id, m.soup_id, m.dessert_id,
 			       d1.name as staple, d2.name as main, d3.name as side, d4.name as soup, d5.name as dessert
 			FROM menus m
@@ -144,9 +144,9 @@ func handleMenus(db *sql.DB) http.HandlerFunc {
 			JOIN dishes d3 ON m.side_id = d3.id
 			JOIN dishes d4 ON m.soup_id = d4.id
 			JOIN dishes d5 ON m.dessert_id = d5.id
-			WHERE m.date >= ? AND m.date <= ?
+			WHERE m.date >= ? AND m.date <= ? AND m.facility_id = ?
 			ORDER BY m.date
-		`, start, end)
+		`), start, end, DefaultFacilityID)
 		if err != nil {
 			writeError(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -216,16 +216,16 @@ func handleCreateMenu(db *sql.DB) http.HandlerFunc {
 		dateNorm := strings.ReplaceAll(body.Date, "/", "-")
 
 		var exists int
-		db.QueryRow("SELECT 1 FROM menus WHERE date = ?", dateNorm).Scan(&exists)
+		db.QueryRow(q("SELECT 1 FROM menus WHERE date = ? AND facility_id = ?"), dateNorm, DefaultFacilityID).Scan(&exists)
 		if exists == 1 {
 			writeError(w, dateNorm+" は既に登録されています", http.StatusConflict)
 			return
 		}
 
-		_, err := db.Exec(`
-			INSERT INTO menus (date, staple_id, main_id, side_id, soup_id, dessert_id, note)
-			VALUES (?, ?, ?, ?, ?, ?, '')
-		`, dateNorm, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID)
+		_, err := db.Exec(q(`
+			INSERT INTO menus (date, facility_id, staple_id, main_id, side_id, soup_id, dessert_id, note)
+			VALUES (?, ?, ?, ?, ?, ?, ?, '')
+		`), dateNorm, DefaultFacilityID, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID)
 		if err != nil {
 			writeError(w, dbErrorToJapanese(err), http.StatusInternalServerError)
 			return
@@ -259,10 +259,10 @@ func handleUpdateMenu(db *sql.DB) http.HandlerFunc {
 		}
 		dateNorm := strings.ReplaceAll(body.Date, "/", "-")
 
-		result, err := db.Exec(`
+		result, err := db.Exec(q(`
 			UPDATE menus SET staple_id=?, main_id=?, side_id=?, soup_id=?, dessert_id=?
-			WHERE date = ?
-		`, body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID, dateNorm)
+			WHERE date = ? AND facility_id = ?
+		`), body.StapleID, body.MainID, body.SideID, body.SoupID, body.DessertID, dateNorm, DefaultFacilityID)
 		if err != nil {
 			writeError(w, dbErrorToJapanese(err), http.StatusInternalServerError)
 			return
@@ -286,9 +286,9 @@ func handleCalc(db *sql.DB) http.HandlerFunc {
 		}
 
 		var stapleID, mainID, sideID, soupID, dessertID int
-		err := db.QueryRow(`
-			SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus WHERE date = ?
-		`, date).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID)
+		err := db.QueryRow(q(`
+			SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus WHERE date = ? AND facility_id = ?
+		`), date, DefaultFacilityID).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID)
 		if err == sql.ErrNoRows {
 			writeError(w, date+" の献立が登録されていません", http.StatusNotFound)
 			return
@@ -348,7 +348,7 @@ func handleOrder(db *sql.DB) http.HandlerFunc {
 		ingNames := make(map[int]string)
 		for ingID := range totalByIng {
 			var name string
-			db.QueryRow("SELECT name FROM ingredients WHERE id = ?", ingID).Scan(&name)
+			db.QueryRow(q("SELECT name FROM ingredients WHERE id = ?"), ingID).Scan(&name)
 			ingNames[ingID] = name
 		}
 
@@ -402,12 +402,12 @@ func handleBulkOrder(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		rows, err := db.Query(`
+		rows, err := db.Query(q(`
 			SELECT b.ingredient_id, i.name, b.order_unit_g, b.order_unit_name, b.bulk_category
 			FROM bulk_purchase_guide b
 			JOIN ingredients i ON b.ingredient_id = i.id
 			ORDER BY b.bulk_category, b.ingredient_id
-		`)
+		`))
 		if err != nil {
 			writeError(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -468,7 +468,7 @@ func handleExport(db *sql.DB) http.HandlerFunc {
 		lastDay := time.Date(year, time.Month(m+1), 0, 0, 0, 0, 0, time.UTC).Day()
 		end := fmt.Sprintf("%04d-%02d-%02d", year, m, lastDay)
 
-		rows, err := db.Query(`
+		rows, err := db.Query(q(`
 			SELECT m.date, m.staple_id, m.main_id, m.side_id, m.soup_id, m.dessert_id,
 			       d1.name as staple, d2.name as main, d3.name as side, d4.name as soup, d5.name as dessert
 			FROM menus m
@@ -477,9 +477,9 @@ func handleExport(db *sql.DB) http.HandlerFunc {
 			JOIN dishes d3 ON m.side_id = d3.id
 			JOIN dishes d4 ON m.soup_id = d4.id
 			JOIN dishes d5 ON m.dessert_id = d5.id
-			WHERE m.date >= ? AND m.date <= ?
+			WHERE m.date >= ? AND m.date <= ? AND m.facility_id = ?
 			ORDER BY m.date
-		`, start, end)
+		`), start, end, DefaultFacilityID)
 		if err != nil {
 			writeError(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -556,6 +556,8 @@ func runServer(db *sql.DB, port string) error {
 	mux.HandleFunc("/api/order", handleOrder(db))
 	mux.HandleFunc("/api/order/bulk", handleBulkOrder(db))
 	mux.HandleFunc("/api/export", handleExport(db))
+	mux.HandleFunc("/api/auth/login", handleLogin(db))
+	mux.HandleFunc("/api/auth/register", handleRegister(db))
 
 	handler := corsMiddleware(mux)
 	addr := ":" + port

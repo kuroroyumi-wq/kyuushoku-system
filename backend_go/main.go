@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/xuri/excelize/v2"
-	_ "modernc.org/sqlite"
 )
 
 const (
@@ -47,24 +46,16 @@ func findDBPath() string {
 // validateReferenceIntegrity は recipe の dish_id, ingredient_id が有効かチェック。テスト用。
 func validateReferenceIntegrity(db *sql.DB) (bool, error) {
 	var orphanCount int
-	err := db.QueryRow(`
+	err := db.QueryRow(q(`
 		SELECT COUNT(*) FROM recipe r
 		LEFT JOIN dishes d ON r.dish_id = d.id
 		LEFT JOIN ingredients i ON r.ingredient_id = i.id
 		WHERE d.id IS NULL OR i.id IS NULL
-	`).Scan(&orphanCount)
+	`)).Scan(&orphanCount)
 	if err != nil {
 		return false, err
 	}
 	return orphanCount == 0, nil
-}
-
-func openDB() (*sql.DB, error) {
-	dbPath := findDBPath()
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("データベースが見つかりません。先に tools/migrate_csv_to_sqlite.py を実行してください: %s", dbPath)
-	}
-	return sql.Open("sqlite", dbPath)
 }
 
 type Nutrition struct {
@@ -83,12 +74,12 @@ func round2(v float64) float64 {
 }
 
 func calcDishNutrition(db *sql.DB, dishID int) (Nutrition, error) {
-	rows, err := db.Query(`
+	rows, err := db.Query(q(`
 		SELECT i.energy, i.protein, i.fat, i.carbohydrate, i.salt, r.amount
 		FROM recipe r
 		JOIN ingredients i ON r.ingredient_id = i.id
 		WHERE r.dish_id = ?
-	`, dishID)
+	`), dishID)
 	if err != nil {
 		return Nutrition{}, err
 	}
@@ -138,9 +129,9 @@ func calcMenuNutrition(db *sql.DB, stapleID, mainID, sideID, soupID, dessertID i
 
 func cmdCalc(db *sql.DB, date string) error {
 	var stapleID, mainID, sideID, soupID, dessertID int
-	err := db.QueryRow(`
-		SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus WHERE date = ?
-	`, date).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID)
+	err := db.QueryRow(q(`
+		SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus WHERE date = ? AND facility_id = ?
+	`), date, DefaultFacilityID).Scan(&stapleID, &mainID, &sideID, &soupID, &dessertID)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("%s の献立が登録されていません", date)
 	}
@@ -195,11 +186,11 @@ func cmdCalc(db *sql.DB, date string) error {
 
 // aggregateOrder は期間内の献立から食材使用量を集計。excludeCondiments が true のとき調味料を除外。
 func aggregateOrder(db *sql.DB, start, end string, people int, excludeCondiments bool) (map[int]float64, error) {
-	rows, err := db.Query(`
+	rows, err := db.Query(q(`
 		SELECT staple_id, main_id, side_id, soup_id, dessert_id FROM menus
-		WHERE date >= ? AND date <= ?
+		WHERE date >= ? AND date <= ? AND facility_id = ?
 		ORDER BY date
-	`, start, end)
+	`), start, end, DefaultFacilityID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +205,7 @@ func aggregateOrder(db *sql.DB, start, end string, people int, excludeCondiments
 		}
 		count++
 		for _, dishID := range []int{s, m, si, so, d} {
-			r2, err2 := db.Query(`SELECT ingredient_id, amount FROM recipe WHERE dish_id = ?`, dishID)
+			r2, err2 := db.Query(q(`SELECT ingredient_id, amount FROM recipe WHERE dish_id = ?`), dishID)
 			if err2 != nil {
 				continue
 			}
@@ -235,7 +226,7 @@ func aggregateOrder(db *sql.DB, start, end string, people int, excludeCondiments
 	for ingID, amt := range amountByIng {
 		if excludeCondiments {
 			var cat string
-			if err := db.QueryRow("SELECT ingredient_category FROM ingredients WHERE id = ?", ingID).Scan(&cat); err == nil && cat == "調味料" {
+			if err := db.QueryRow(q("SELECT ingredient_category FROM ingredients WHERE id = ?"), ingID).Scan(&cat); err == nil && cat == "調味料" {
 				continue
 			}
 		}
@@ -253,7 +244,7 @@ func cmdOrder(db *sql.DB, start, end string, people int) error {
 	ingNames := make(map[int]string)
 	for ingID := range totalByIng {
 		var name string
-		db.QueryRow("SELECT name FROM ingredients WHERE id = ?", ingID).Scan(&name)
+		db.QueryRow(q("SELECT name FROM ingredients WHERE id = ?"), ingID).Scan(&name)
 		ingNames[ingID] = name
 	}
 
@@ -289,7 +280,7 @@ func cmdExport(db *sql.DB, month, output string) error {
 	lastDay := time.Date(year, time.Month(m+1), 0, 0, 0, 0, 0, time.UTC).Day()
 	end := fmt.Sprintf("%04d-%02d-%02d", year, m, lastDay)
 
-	rows, err := db.Query(`
+	rows, err := db.Query(q(`
 		SELECT m.date, m.staple_id, m.main_id, m.side_id, m.soup_id, m.dessert_id,
 		       d1.name as staple, d2.name as main, d3.name as side, d4.name as soup, d5.name as dessert
 		FROM menus m
@@ -298,9 +289,9 @@ func cmdExport(db *sql.DB, month, output string) error {
 		JOIN dishes d3 ON m.side_id = d3.id
 		JOIN dishes d4 ON m.soup_id = d4.id
 		JOIN dishes d5 ON m.dessert_id = d5.id
-		WHERE m.date >= ? AND m.date <= ?
+		WHERE m.date >= ? AND m.date <= ? AND m.facility_id = ?
 		ORDER BY m.date
-	`, start, end)
+	`), start, end, DefaultFacilityID)
 	if err != nil {
 		return err
 	}
@@ -358,7 +349,7 @@ func cmdExport(db *sql.DB, month, output string) error {
 
 func cmdCreateMenu(db *sql.DB, date string) error {
 	var exists int
-	db.QueryRow("SELECT 1 FROM menus WHERE date = ?", date).Scan(&exists)
+	db.QueryRow(q("SELECT 1 FROM menus WHERE date = ? AND facility_id = ?"), date, DefaultFacilityID).Scan(&exists)
 	if exists == 1 {
 		return fmt.Errorf("%s は既に登録されています。同日登録は禁止です。", date)
 	}
@@ -367,7 +358,7 @@ func cmdCreateMenu(db *sql.DB, date string) error {
 		id   int
 		name string
 	})
-	rows, _ := db.Query("SELECT id, name, menu_category FROM dishes")
+	rows, _ := db.Query(q("SELECT id, name, menu_category FROM dishes"))
 	for rows.Next() {
 		var id int
 		var name, cat string
@@ -415,10 +406,10 @@ func cmdCreateMenu(db *sql.DB, date string) error {
 		}
 	}
 
-	_, err := db.Exec(`
-		INSERT INTO menus (date, staple_id, main_id, side_id, soup_id, dessert_id, note)
-		VALUES (?, ?, ?, ?, ?, ?, '')
-	`, date, selected["staple_id"], selected["main_id"], selected["side_id"],
+	_, err := db.Exec(q(`
+		INSERT INTO menus (date, facility_id, staple_id, main_id, side_id, soup_id, dessert_id, note)
+		VALUES (?, ?, ?, ?, ?, ?, ?, '')
+	`), date, DefaultFacilityID, selected["staple_id"], selected["main_id"], selected["side_id"],
 		selected["soup_id"], selected["dessert_id"])
 	if err != nil {
 		return err
@@ -430,10 +421,10 @@ func cmdCreateMenu(db *sql.DB, date string) error {
 
 func cmdStep1(db *sql.DB) error {
 	var ingCount, dishCount, recipeCount, menuCount int
-	db.QueryRow("SELECT COUNT(*) FROM ingredients").Scan(&ingCount)
-	db.QueryRow("SELECT COUNT(*) FROM dishes").Scan(&dishCount)
-	db.QueryRow("SELECT COUNT(*) FROM recipe").Scan(&recipeCount)
-	db.QueryRow("SELECT COUNT(*) FROM menus").Scan(&menuCount)
+	db.QueryRow(q("SELECT COUNT(*) FROM ingredients")).Scan(&ingCount)
+	db.QueryRow(q("SELECT COUNT(*) FROM dishes")).Scan(&dishCount)
+	db.QueryRow(q("SELECT COUNT(*) FROM recipe")).Scan(&recipeCount)
+	db.QueryRow(q("SELECT COUNT(*) FROM menus")).Scan(&menuCount)
 
 	fmt.Println("管理栄養士業務システム - ステップ1 動作確認")
 	fmt.Println("----------------------------------------")

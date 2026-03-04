@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "description": "管理栄養士業務システム データスキーマ",
   "updated_at": "2026-03-03",
   "tables": {
@@ -13,7 +13,10 @@
       "columns": ["dish_id", "ingredient_id", "amount"]
     },
     "menus": {
-      "columns": ["date", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]
+      "columns": ["date", "facility_id", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]
+    },
+    "facilities": {
+      "columns": ["id", "name", "code", "created_at"]
     }
   }
 }

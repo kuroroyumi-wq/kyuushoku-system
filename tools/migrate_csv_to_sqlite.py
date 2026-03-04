@@ -46,6 +46,14 @@ def migrate(db_path: str) -> None:
     conn = sqlite3.connect(db_path)
     conn.executescript(schema_sql)
 
+    # デフォルト施設（Phase4）
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO facilities (id, name, code) VALUES (1, 'デフォルト', 'default')"
+        )
+    except sqlite3.OperationalError:
+        pass
+
     # version テーブル（schema.json と同期）
     schema_version = load_schema_version()
     conn.execute("DELETE FROM version")
@@ -57,12 +65,12 @@ def migrate(db_path: str) -> None:
     # 各 CSV をインポート（既存データは削除して再投入）
     tables = [
         ("ingredients.csv", "ingredients", [
-            "id", "name", "ingredient_category", "energy", "protein", "fat",
+            "id", "facility_id", "name", "ingredient_category", "energy", "protein", "fat",
             "carbohydrate", "salt", "unit", "waste_rate", "note"
         ]),
-        ("dishes.csv", "dishes", ["id", "name", "menu_category", "serving_size", "note"]),
+        ("dishes.csv", "dishes", ["id", "facility_id", "name", "menu_category", "serving_size", "note"]),
         ("recipe.csv", "recipe", ["dish_id", "ingredient_id", "amount"]),
-        ("menus.csv", "menus", ["date", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]),
+        ("menus.csv", "menus", ["date", "facility_id", "staple_id", "main_id", "side_id", "soup_id", "dessert_id", "note"]),
         ("bulk_purchase_guide.csv", "bulk_purchase_guide", ["ingredient_id", "order_unit_g", "order_unit_name", "bulk_category"]),
     ]
 
@@ -87,7 +95,12 @@ def migrate(db_path: str) -> None:
         placeholders = ", ".join(["?"] * len(columns))
         col_str = ", ".join(columns)
         for row in rows:
-            values = [row.get(c, "") for c in columns]
+            values = []
+            for c in columns:
+                if c == "facility_id":
+                    values.append(1 if table_name == "menus" else None)
+                else:
+                    values.append(row.get(c, ""))
             conn.execute(
                 f"INSERT INTO {table_name} ({col_str}) VALUES ({placeholders})",
                 values,

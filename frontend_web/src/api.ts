@@ -1,5 +1,12 @@
 const API_BASE = '/api';
 
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+};
+
 export interface Dish {
   id: number;
   name: string;
@@ -47,21 +54,60 @@ export interface OrderResult {
   items: OrderItem[];
 }
 
+export interface LoginResult {
+  token: string;
+  user: { id: number; email: string; facility_id: number; role: string };
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'ログインに失敗しました');
+  }
+  return res.json();
+}
+
+export async function register(email: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || '登録に失敗しました');
+  }
+}
+
+export function logout(): void {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
+
+export function isLoggedIn(): boolean {
+  return !!localStorage.getItem('token');
+}
+
 export async function getDishes(category?: string): Promise<Dish[]> {
   const url = category ? `${API_BASE}/dishes?category=${encodeURIComponent(category)}` : `${API_BASE}/dishes`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function getMenusByMonth(month: string): Promise<MenuItem[]> {
-  const res = await fetch(`${API_BASE}/menus?month=${encodeURIComponent(month)}`);
+  const res = await fetch(`${API_BASE}/menus?month=${encodeURIComponent(month)}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function getMenuByDate(date: string): Promise<MenuItem> {
-  const res = await fetch(`${API_BASE}/menus?date=${encodeURIComponent(date)}`);
+  const res = await fetch(`${API_BASE}/menus?date=${encodeURIComponent(date)}`, { headers: getAuthHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || res.statusText);
@@ -72,7 +118,7 @@ export async function getMenuByDate(date: string): Promise<MenuItem> {
 export async function createMenu(date: string, stapleId: number, mainId: number, sideId: number, soupId: number, dessertId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/menus`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       date,
       staple_id: stapleId,
@@ -91,7 +137,7 @@ export async function createMenu(date: string, stapleId: number, mainId: number,
 export async function updateMenu(date: string, stapleId: number, mainId: number, sideId: number, soupId: number, dessertId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/menus`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       date,
       staple_id: stapleId,
@@ -108,7 +154,7 @@ export async function updateMenu(date: string, stapleId: number, mainId: number,
 }
 
 export async function getCalc(date: string): Promise<Nutrition> {
-  const res = await fetch(`${API_BASE}/calc?date=${encodeURIComponent(date)}`);
+  const res = await fetch(`${API_BASE}/calc?date=${encodeURIComponent(date)}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -116,7 +162,7 @@ export async function getCalc(date: string): Promise<Nutrition> {
 export async function getOrder(start: string, end: string, people: number, excludeCondiments?: boolean): Promise<OrderResult> {
   const params = new URLSearchParams({ start, end, people: String(people) })
   if (excludeCondiments) params.set('exclude_condiments', '1')
-  const res = await fetch(`${API_BASE}/order?${params}`)
+  const res = await fetch(`${API_BASE}/order?${params}`, { headers: getAuthHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -140,13 +186,13 @@ export interface BulkOrderResult {
 
 export async function getBulkOrder(start: string, end: string, people: number): Promise<BulkOrderResult> {
   const params = new URLSearchParams({ start, end, people: String(people) })
-  const res = await fetch(`${API_BASE}/order/bulk?${params}`)
+  const res = await fetch(`${API_BASE}/order/bulk?${params}`, { headers: getAuthHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function downloadExport(month: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/export?month=${encodeURIComponent(month)}`);
+  const res = await fetch(`${API_BASE}/export?month=${encodeURIComponent(month)}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text());
   return res.blob();
 }

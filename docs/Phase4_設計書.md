@@ -206,7 +206,9 @@ pg_dump -Fc kyuushoku > backup_$(date +%Y%m%d).dump
 
 1. ~~**PostgreSQL 環境構築**~~: ローカルまたは Docker で PostgreSQL を用意
 2. ~~**移行ツール作成**~~: `tools/migrate_sqlite_to_pg.py` 完成
-3. **施設マスタ・facility_id 追加**: Task2 へ
+3. ~~**施設マスタ・facility_id 追加**~~: Task2 完了
+4. ~~**ユーザー・認証（JWT）**~~: Task3 完了
+5. **権限チェック（API ミドルウェア）**: Task4 へ
 
 ---
 
@@ -216,3 +218,5 @@ pg_dump -Fc kyuushoku > backup_$(date +%Y%m%d).dump
 |------|------|------|
 | 1.0 | 2026年3月3日 | 初版作成 |
 | 1.1 | 2026年3月4日 | Task1 実装: schema_pg.sql, migrate_sqlite_to_pg.py, Go 両対応 |
+| 1.2 | 2026年3月4日 | Task2 実装: facilities, facility_id, migrate_add_facility.py |
+| 1.3 | 2026年3月4日 | Task3 実装: users, JWT login/register, ログイン画面 |

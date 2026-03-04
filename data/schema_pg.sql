@@ -1,40 +1,40 @@
--- 管理栄養士業務システム SQLite スキーマ
+-- 管理栄養士業務システム PostgreSQL スキーマ
 -- schema_version: 2.0
 -- Phase4: facilities 追加
 
 -- 施設マスタ（Phase4）
 CREATE TABLE IF NOT EXISTS facilities (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     code TEXT UNIQUE,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- schema_version 管理（開発計画書v2.0）
+-- schema_version 管理
 CREATE TABLE IF NOT EXISTS version (
     schema_version TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 食材マスタ（facility_id NULL = 共通マスタ）
 CREATE TABLE IF NOT EXISTS ingredients (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     facility_id INTEGER,
     name TEXT NOT NULL,
     ingredient_category TEXT NOT NULL,
-    energy REAL NOT NULL,
-    protein REAL NOT NULL,
-    fat REAL NOT NULL,
-    carbohydrate REAL NOT NULL,
-    salt REAL NOT NULL,
+    energy DOUBLE PRECISION NOT NULL,
+    protein DOUBLE PRECISION NOT NULL,
+    fat DOUBLE PRECISION NOT NULL,
+    carbohydrate DOUBLE PRECISION NOT NULL,
+    salt DOUBLE PRECISION NOT NULL,
     unit TEXT NOT NULL,
-    waste_rate REAL NOT NULL DEFAULT 0,
+    waste_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
     note TEXT
 );
 
 -- 献立候補（料理マスタ、facility_id NULL = 共通）
 CREATE TABLE IF NOT EXISTS dishes (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     facility_id INTEGER,
     name TEXT NOT NULL,
     menu_category TEXT NOT NULL,
@@ -46,13 +46,13 @@ CREATE TABLE IF NOT EXISTS dishes (
 CREATE TABLE IF NOT EXISTS recipe (
     dish_id INTEGER NOT NULL REFERENCES dishes(id),
     ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
-    amount REAL NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
     PRIMARY KEY (dish_id, ingredient_id)
 );
 
 -- 献立（facility_id: 施設別）
 CREATE TABLE IF NOT EXISTS menus (
-    date TEXT NOT NULL,
+    date DATE NOT NULL,
     facility_id INTEGER NOT NULL DEFAULT 1 REFERENCES facilities(id),
     staple_id INTEGER NOT NULL REFERENCES dishes(id),
     main_id INTEGER NOT NULL REFERENCES dishes(id),
@@ -65,18 +65,18 @@ CREATE TABLE IF NOT EXISTS menus (
 
 -- ユーザー（Phase4 Task3）
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     facility_id INTEGER REFERENCES facilities(id),
     role TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- まとめ買いガイド（発注単位・分類）
 CREATE TABLE IF NOT EXISTS bulk_purchase_guide (
     ingredient_id INTEGER PRIMARY KEY REFERENCES ingredients(id),
-    order_unit_g REAL NOT NULL,
+    order_unit_g DOUBLE PRECISION NOT NULL,
     order_unit_name TEXT NOT NULL,
     bulk_category TEXT NOT NULL
 );

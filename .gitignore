@@ -12,6 +12,9 @@ backend_go/menu-system
 frontend_web/node_modules/
 frontend_web/dist/
 frontend_web/.vite/
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
 
 # IDE
 .idea/

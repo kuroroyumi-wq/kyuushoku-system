@@ -4,6 +4,8 @@ import Nutrition from './pages/Nutrition'
 import Order from './pages/Order'
 import BulkOrder from './pages/BulkOrder'
 import MenuList from './pages/MenuList'
+import Login from './pages/Login'
+import { isLoggedIn, logout } from './api'
 
 function App() {
   return (
@@ -14,6 +16,11 @@ function App() {
         <Link to="/nutrition">栄養計算</Link>
         <Link to="/order">発注集計</Link>
         <Link to="/bulk-order">まとめ買い</Link>
+        {isLoggedIn() ? (
+          <button type="button" className="nav-logout" onClick={() => { logout(); window.location.href = '/login'; }}>ログアウト</button>
+        ) : (
+          <Link to="/login">ログイン</Link>
+        )}
       </nav>
       <div className="container">
         <Routes>
@@ -22,6 +29,7 @@ function App() {
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/order" element={<Order />} />
           <Route path="/bulk-order" element={<BulkOrder />} />
+          <Route path="/login" element={<Login />} />
         </Routes>
       </div>
     </>
