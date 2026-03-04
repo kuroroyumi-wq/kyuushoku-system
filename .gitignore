@@ -11,6 +11,7 @@ backend_go/menu-system
 # Phase3
 frontend_web/node_modules/
 frontend_web/dist/
+frontend_web/.vite/
 
 # IDE
 .idea/
